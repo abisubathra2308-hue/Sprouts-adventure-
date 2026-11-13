@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprout's Big Adventure</title>
+    <!-- Tailwind CSS for UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for adorable retro sound effects and music -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- FontAwesome for cute icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            overflow: hidden;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            background: #dff9fb;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border-radius: 1rem;
+        }
+        .game-btn {
+            transition: all 0.1s ease;
+        }
+        .game-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center h-screen w-screen select-none m-0 p-2 sm:p-4">
+
+    <!-- Top HUD Header -->
+    <div id="hud" class="w-full max-w-4xl flex justify-between items-center mb-2 px-4 py-2 bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-white/55">
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-1.5 text-pink-500 font-bold text-lg bg-pink-50 px-3 py-1 rounded-xl">
+                <i class="fa-solid fa-heart"></i>
+                <span id="lives-display">3</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-amber-500 font-bold text-lg bg-amber-50 px-3 py-1 rounded-xl">
+                <i class="fa-solid fa-gem"></i>
+                <span id="gems-display">0 / 5</span>
+            </div>
+        </div>
+        <div class="text-indigo-600 font-bold text-lg tracking-wide bg-indigo-50 px-4 py-1 rounded-xl">
+            Level <span id="level-display">1</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="sound-btn" onclick="toggleSound()" class="w-10 h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 rounded-xl flex items-center justify-center transition game-btn shadow-sm" title="Toggle Sound">
+                <i class="fa-solid fa-volume-high" id="sound-icon"></i>
+            </button>
+            <button onclick="pauseGame()" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center transition game-btn shadow-sm" title="Pause">
+                <i class="fa-solid fa-pause"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game Canvas Container -->
+    <div class="relative w-full max-w-4xl flex-1 flex items-center justify-center min-h-0 mb-4">
+        <canvas id="gameCanvas" width="900" height="500" class="w-full h-full object-contain max-h-[62vh]"></canvas>
+
+        <!-- Start / Pause / Game Over Overlays -->
+        <div id="overlay" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+            <div class="bg-white/95 p-8 rounded-3xl shadow-2xl max-w-md w-full border-4 border-indigo-100 transform transition-all scale-100">
+                <div id="overlay-icon" class="text-6xl text-emerald-500 mb-3 animate-bounce">
+                    <i class="fa-solid fa-seedling"></i>
+                </div>
+                <h1 id="overlay-title" class="text-3xl font-bold text-slate-800 mb-2">Sprout's Big Adventure</h1>
+                <p id="overlay-desc" class="text-slate-600 mb-6 text-sm sm:text-base leading-relaxed">
+                    Guide little Sprout across platform adventures! Collect all glowing magical gems and reach the portal door to win!
+                </p>
+                <div class="space-y-3">
+                    <button id="main-action-btn" onclick="startGame()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-lg rounded-2xl shadow-lg shadow-emerald-500/30 transition game-btn flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play"></i> Start Journey
+                    </button>
+                    <div id="controls-hint" class="text-xs text-slate-400 pt-2 border-t border-slate-100 flex justify-around">
+                        <span>⬅️ ➡️ Move</span>
+                        <span>⬆️ / Space: Jump</span>
+                        <span>📱 Touch buttons below</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile On-Screen Touch Controls (Moved even higher up on the screen) -->
+    <div id="touch-controls" class="w-full max-w-4xl flex justify-between items-center px-6 py-3 mb-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-md border border-white/60">
+        <div class="flex gap-4">
+            <button id="btn-left" class="w-14 h-14 bg-indigo-500 hover:bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-md game-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <button id="btn-right" class="w-14 h-14 bg-indigo-500 hover:bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-md game-btn">
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+        <div class="text-xs text-slate-500 hidden sm:block font-medium">Use Arrow Keys / A & D to Move, W / Space to Jump</div>
+        <div>
+            <button id="btn-jump" class="w-24 h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-base shadow-md game-btn gap-2">
+                <i class="fa-solid fa-angles-up"></i> Jump
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Setup & Variables ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let gameState = 'START'; // START, PLAYING, PAUSED, GAMEOVER, WIN, LEVEL_CLEAR
+        let soundEnabled = true;
+        let score = 0;
+        let currentLevel = 1;
+        let totalLevels = 3;
+
+        // Player object
+        let player = {
+            x: 50,
+            y: 300,
+            width: 34,
+            height: 42,
+            vx: 0,
+            vy: 0,
+            speed: 4.5,
+            jumpForce: -11.5,
+            gravity: 0.55,
+            grounded: false,
+            facing: 'right',
+            wobble: 0
+        };
+
+        // Input state
+        let keys = { left: false, right: false, jump: false };
+
+        // Level Entities
+        let platforms = [];
+        let hazards = []; // Spikes
+        let gems = [];
+        let portal = {};
+        let particles = [];
+        let clouds = [];
+
+        // --- Audio with Tone.js ---
+        let synth, jumpSynth, collectSynth, winSynth, hitSynth;
+        function initAudio() {
+            try {
+                synth = new Tone.Synth().toDestination();
+                jumpSynth = new Tone.Synth({
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
+                collectSynth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 }
+                }).toDestination();
+                hitSynth = new Tone.Synth({
+                    oscillator: { type: 'sawtooth' },
+                    envelope: { attack: 0.02, decay: 0.3, sustain: 0, release: 0.2 }
+                }).toDestination();
+            } catch (e) {
+                console.log("Audio init skipped", e);
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                Tone.start();
+                if (type === 'jump') jumpSynth.triggerAttackRelease('C5', '8n');
+                else if (type === 'collect') {
+                    collectSynth.triggerAttackRelease('E5', '16n');
+                    setTimeout(() => collectSynth.triggerAttackRelease('G5', '16n'), 80);
+                }
+                else if (type === 'hit') hitSynth.triggerAttackRelease('G2', '4n');
+                else if (type === 'win') {
+                    collectSynth.triggerAttackRelease('C5', '8n');
+                    setTimeout(() => collectSynth.triggerAttackRelease('E5', '8n'), 150);
+                    setTimeout(() => collectSynth.triggerAttackRelease('G5', '4n'), 300);
+                }
+            } catch(e) {}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            if (soundEnabled) {
+                icon.className = "fa-solid fa-volume-high";
+                Tone.Destination.mute = false;
+            } else {
+                icon.className = "fa-solid fa-volume-xmark";
+                Tone.Destination.mute = true;
+            }
+        }
+
+        // --- Level Design Data ---
+        function loadLevel(levelNum) {
+            platforms = [];
+            hazards = [];
+            gems = [];
+            
+            // Background Clouds
+            clouds = [
+                {x: 100, y: 80, speed: 0.3, size: 60},
+                {x: 400, y: 50, speed: 0.2, size: 80},
+                {x: 750, y: 100, speed: 0.25, size: 50},
+            ];
+
+            if (levelNum === 1) {
+                // Starting position
+                player.x = 60;
+                player.y = 350;
+                player.vx = 0;
+                player.vy = 0;
+
+                // Ground & Platforms
+                platforms = [
+                    {x: 0, y: 440, width: 900, height: 60, type: 'grass'},
+                    {x: 250, y: 330, width: 140, height: 20, type: 'wood'},
+                    {x: 480, y: 250, width: 150, height: 20, type: 'wood'},
+                    {x: 200, y: 170, width: 130, height: 20, type: 'wood'},
+                    {x: 700, y: 340, width: 160, height: 20, type: 'wood'}
+                ];
+
+                // Hazards (Spikes)
+                hazards = [
+                    {x: 520, y: 420, width: 40, height: 20}
+                ];
+
+                // Gems
+                gems = [
+                    {x: 310, y: 290, collected: false, floatOffset: 0},
+                    {x: 550, y: 210, collected: false, floatOffset: 1},
+                    {x: 260, y: 130, collected: false, floatOffset: 2},
+                    {x: 770, y: 300, collected: false, floatOffset: 1.5},
+                    {x: 120, y: 400, collected: false, floatOffset: 0.5}
+                ];
+
+                portal = { x: 820, y: 370, width: 45, height: 70, active: false };
+
+            } else if (levelNum === 2) {
+                player.x = 60;
+                player.y = 350;
+                player.vx = 0;
+                player.vy = 0;
+
+                platforms = [
+                    {x: 0, y: 440, width: 320, height: 60, type: 'grass'},
+                    {x: 420, y: 440, width: 480, height: 60, type: 'grass'},
+                    {x: 180, y: 340, width: 110, height: 20, type: 'wood'},
+                    {x: 350, y: 270, width: 110, height: 20, type: 'wood'},
+                    {x: 540, y: 200, width: 120, height: 20, type: 'wood'},
+                    {x: 740, y: 290, width: 120, height: 20, type: 'wood'}
+                ];
+
+                hazards = [
+                    {x: 320, y: 425, width: 100, height: 15}, // Pit gap hazard
+                    {x: 580, y: 180, width: 30, height: 20}
+                ];
+
+                gems = [
+                    {x: 220, y: 300, collected: false, floatOffset: 0},
+                    {x: 390, y: 230, collected: false, floatOffset: 1},
+                    {x: 600, y: 160, collected: false, floatOffset: 2},
+                    {x: 790, y: 250, collected: false, floatOffset: 1.2},
+                    {x: 450, y: 400, collected: false, floatOffset: 0.8}
+                ];
+
+                portal = { x: 820, y: 370, width: 45, height: 70, active: false };
+
+            } else if (levelNum === 3) {
+                player.x = 60;
+                player.y = 350;
+                player.vx = 0;
+                player.vy = 0;
+
+                platforms = [
+                    {x: 0, y: 440, width: 900, height: 60, type: 'grass'},
+                    {x: 150, y: 340, width: 90, height: 20, type: 'wood'},
+                    {x: 310, y: 270, width: 90, height: 20, type: 'wood'},
+                    {x: 480, y: 200, width: 90, height: 20, type: 'wood'},
+                    {x: 650, y: 270, width: 90, height: 20, type: 'wood'},
+                    {x: 780, y: 160, width: 90, height: 20, type: 'wood'}
+                ];
+
+                hazards = [
+                    {x: 230, y: 420, width: 50, height: 20},
+                    {x: 550, y: 420, width: 60, height: 20},
+                    {x: 490, y: 180, width: 40, height: 20}
+                ];
+
+                gems = [
+                    {x: 185, y: 300, collected: false, floatOffset: 0},
+                    {x: 345, y: 230, collected: false, floatOffset: 0.5},
+                    {x: 515, y: 160, collected: false, floatOffset: 1},
+                    {x: 685, y: 230, collected: false, floatOffset: 1.5},
+                    {x: 815, y: 120, collected: false, floatOffset: 2}
+                ];
+
+                portal = { x: 820, y: 370, width: 45, height: 70, active: false };
+            }
+
+            updateHUD();
+        }
+
+        // --- Controls & Listeners ---
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
+                if (!keys.jump && gameState === 'PLAYING') {
+                    attemptJump();
+                }
+                keys.jump = true;
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') keys.jump = false;
+        });
+
+        // Touch buttons binding
+        function bindTouchButton(id, keyName) {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; if(keyName==='jump') attemptJump(); });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+            btn.addEventListener('mousedown', (e) => { e.preventDefault(); keys[keyName] = true; if(keyName==='jump') attemptJump(); });
+            btn.addEventListener('mouseup', (e) => { e.preventDefault(); keys[keyName] = false; });
+        }
+        bindTouchButton('btn-left', 'left');
+        bindTouchButton('btn-right', 'right');
+        bindTouchButton('btn-jump', 'jump');
+
+        function attemptJump() {
+            if (player.grounded) {
+                player.vy = player.jumpForce;
+                player.grounded = false;
+                playSound('jump');
+                spawnJumpDust();
+            }
+        }
+
+        // --- Particle Effects ---
+        function spawnJumpDust() {
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x: player.x + player.width / 2,
+                    y: player.y + player.height,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: -Math.random() * 2,
+                    radius: Math.random() * 4 + 2,
+                    color: '#ffffff',
+                    alpha: 0.8,
+                    life: 20
+                });
+            }
+        }
+
+        function spawnSparkles(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    radius: Math.random() * 5 + 3,
+                    color: color,
+                    alpha: 1,
+                    life: 25
+                });
+            }
+        }
+
+        // --- Game Flow Control ---
+        let playerLives = 3;
+
+        function startGame() {
+            initAudio();
+            gameState = 'PLAYING';
+            playerLives = 3;
+            currentLevel = 1;
+            score = 0;
+            loadLevel(currentLevel);
+            document.getElementById('overlay').classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function pauseGame() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                showOverlay("Game Paused", "Take a breather! Ready to resume your adventure?", "Resume Game", "fa-circle-pause", "text-amber-500");
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                document.getElementById('overlay').classList.add('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            if (currentLevel > totalLevels) {
+                gameState = 'WIN';
+                playSound('win');
+                showOverlay("You Won! 🎉", `Fantastic job! You completed all levels with a score of ${score} gems!`, "Play Again", "fa-trophy", "text-amber-400");
+            } else {
+                gameState = 'PLAYING';
+                loadLevel(currentLevel);
+                document.getElementById('overlay').classList.add('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function showOverlay(title, desc, btnText, iconClass, iconColor) {
+            const overlay = document.getElementById('overlay');
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+            document.getElementById('overlay-title').innerText = title;
+            document.getElementById('overlay-desc').innerText = desc;
+            document.getElementById('main-action-btn').innerHTML = `<i class="fa-solid fa-play"></i> ${btnText}`;
+            document.getElementById('overlay-icon').innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+            document.getElementById('overlay-icon').className = `text-6xl ${iconColor} mb-3 animate-bounce`;
+            
+            if (btnText === "Play Again" || btnText === "Try Again") {
+                document.getElementById('main-action-btn').setAttribute('onclick', 'startGame()');
+            } else if (btnText === "Resume Game") {
+                document.getElementById('main-action-btn').setAttribute('onclick', 'pauseGame()');
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('lives-display').innerText = playerLives;
+            let collectedCount = gems.filter(g => g.collected).length;
+            document.getElementById('gems-display').innerText = `${collectedCount} / ${gems.length}`;
+            document.getElementById('level-display').innerText = currentLevel;
+
+            // Check if all gems collected to unlock portal
+            if (collectedCount === gems.length) {
+                portal.active = true;
+            }
+        }
+
+        // --- Core Game Loop ---
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // Player Horizontal Movement
+            if (keys.left) {
+                player.vx = -player.speed;
+                player.facing = 'left';
+            } else if (keys.right) {
+                player.vx = player.speed;
+                player.facing = 'right';
+            } else {
+                player.vx *= 0.8; // friction
+            }
+
+            player.x += player.vx;
+
+            // Screen boundaries
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            // Vertical Physics & Gravity
+            player.vy += player.gravity;
+            player.y += player.vy;
+            player.grounded = false;
+
+            // Platform Collisions
+            platforms.forEach(plat => {
+                // Simple AABB with downward landing check
+                if (
+                    player.x + player.width > plat.x &&
+                    player.x < plat.x + plat.width &&
+                    player.y + player.height >= plat.y &&
+                    player.y + player.height - player.vy <= plat.y + 10 &&
+                    player.vy > 0
+                ) {
+                    player.y = plat.y - player.height;
+                    player.vy = 0;
+                    player.grounded = true;
+                }
+            });
+
+            // Fall into bottom abyss check
+            if (player.y > canvas.height + 50) {
+                handlePlayerDeath();
+            }
+
+            // Hazard (Spike) Collisions
+            hazards.forEach(h => {
+                if (
+                    player.x + player.width - 6 > h.x &&
+                    player.x + 6 < h.x + h.width &&
+                    player.y + player.height - 4 > h.y &&
+                    player.y + 6 < h.y + h.height
+                ) {
+                    handlePlayerDeath();
+                }
+            });
+
+            // Gem Collections
+            gems.forEach(gem => {
+                if (!gem.collected) {
+                    let gx = gem.x + 12;
+                    let gy = gem.y + 12;
+                    let dist = Math.hypot((player.x + player.width/2) - gx, (player.y + player.height/2) - gy);
+                    if (dist < 28) {
+                        gem.collected = true;
+                        score += 10;
+                        playSound('collect');
+                        spawnSparkles(gx, gy, '#f59e0b');
+                        updateHUD();
+                    }
+                }
+            });
+
+            // Portal Check
+            if (portal.active) {
+                if (
+                    player.x < portal.x + portal.width &&
+                    player.x + player.width > portal.x &&
+                    player.y < portal.y + portal.height &&
+                    player.y + player.height > portal.y
+                ) {
+                    playSound('win');
+                    showOverlay(`Level ${currentLevel} Cleared! ✨`, `Amazing work! Ready for the next adventure?`, "Next Level", "fa-star", "text-amber-500");
+                    document.getElementById('main-action-btn').setAttribute('onclick', 'nextLevel()');
+                    gameState = 'LEVEL_CLEAR';
+                }
+            }
+
+            // Update Clouds
+            clouds.forEach(c => {
+                c.x -= c.speed;
+                if (c.x < -100) c.x = canvas.width + 100;
+            });
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 1 / p.life;
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+
+            // Player Animation Wobble
+            if (Math.abs(player.vx) > 0.5 && player.grounded) {
+                player.wobble += 0.2;
+            } else {
+                player.wobble = 0;
+            }
+        }
+
+        function handlePlayerDeath() {
+            playSound('hit');
+            playerLives--;
+            updateHUD();
+            spawnSparkles(player.x + player.width/2, player.y + player.height/2, '#ef4444');
+            if (playerLives <= 0) {
+                gameState = 'GAMEOVER';
+                showOverlay("Game Over", "Sprout took a tumble! Don't worry, brave adventurer, try again!", "Try Again", "fa-face-frown", "text-rose-500");
+            } else {
+                // Respawn at level start
+                loadLevel(currentLevel);
+            }
+        }
+
+        // --- Rendering Graphics ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Background Gradient Sky
+            let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGrad.addColorStop(0, '#e0f2fe');
+            bgGrad.addColorStop(1, '#bae6fd');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Clouds
+            clouds.forEach(c => {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.size * 0.4, 0, Math.PI * 2);
+                ctx.arc(c.x + c.size * 0.3, c.y - c.size * 0.15, c.size * 0.35, 0, Math.PI * 2);
+                ctx.arc(c.x + c.size * 0.6, c.y, c.size * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw Portal Door
+            drawPortal();
+
+            // Draw Platforms
+            platforms.forEach(plat => {
+                if (plat.type === 'grass') {
+                    // Cute green grassy block with soil
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(plat.x, plat.y + 12, plat.width, plat.height - 12);
+                    ctx.fillStyle = '#10b981';
+                    ctx.fillRect(plat.x, plat.y, plat.width, 14);
+                    // Little grass tufts
+                    ctx.fillStyle = '#059669';
+                    for (let gx = plat.x + 8; gx < plat.x + plat.width - 5; gx += 20) {
+                        ctx.beginPath();
+                        ctx.moveTo(gx, plat.y);
+                        ctx.lineTo(gx + 4, plat.y - 6);
+                        ctx.lineTo(gx + 8, plat.y);
+                        ctx.fill();
+                    }
+                } else {
+                    // Wooden floating platform
+                    ctx.fillStyle = '#b45309';
+                    ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                    ctx.fillStyle = '#d97706';
+                    ctx.fillRect(plat.x, plat.y, plat.width, 4);
+                    // Wood grain line
+                    ctx.strokeStyle = '#92400e';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(plat.x + 10, plat.y + 10);
+                    ctx.lineTo(plat.x + plat.width - 10, plat.y + 10);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw Hazards (Spikes)
+            hazards.forEach(h => {
+                ctx.fillStyle = '#64748b';
+                let spikeWidth = 15;
+                let count = Math.ceil(h.width / spikeWidth);
+                for (let i = 0; i < count; i++) {
+                    let sx = h.x + i * spikeWidth;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, h.y + h.height);
+                    ctx.lineTo(sx + spikeWidth / 2, h.y);
+                    ctx.lineTo(sx + spikeWidth, h.y + h.height);
+                    ctx.fill();
+                }
+            });
+
+            // Draw Gems
+            gems.forEach((gem, idx) => {
+                if (!gem.collected) {
+                    gem.floatOffset += 0.05;
+                    let floatY = Math.sin(gem.floatOffset) * 4;
+                    drawCuteGem(gem.x, gem.y + floatY);
+                }
+            });
+
+            // Draw Player (Sprout)
+            drawPlayer();
+
+            // Draw Particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+        }
+
+        function drawPortal() {
+            let p = portal;
+            // Portal aura glow
+            let gradient = ctx.createRadialGradient(p.x + p.width/2, p.y + p.height/2, 5, p.x + p.width/2, p.y + p.height/2, p.width);
+            gradient.addColorStop(0, portal.active ? 'rgba(168, 85, 247, 0.8)' : 'rgba(148, 163, 184, 0.3)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(p.x - 20, p.y - 20, p.width + 40, p.height + 40);
+
+            // Door Frame
+            ctx.fillStyle = portal.active ? '#9333ea' : '#475569';
+            ctx.beginPath();
+            ctx.roundRect(p.x, p.y, p.width, p.height, [25, 25, 0, 0]);
+            ctx.fill();
+
+            // Door Inner Vortex
+            ctx.fillStyle = portal.active ? '#c084fc' : '#334155';
+            ctx.beginPath();
+            ctx.roundRect(p.x + 6, p.y + 6, p.width - 12, p.height - 12, [20, 20, 0, 0]);
+            ctx.fill();
+
+            // Portal Lock or Star Icon if inactive/active
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '16px FontAwesome';
+            ctx.textAlign = 'center';
+            ctx.fillText(portal.active ? '\uf005' : '\uf023', p.x + p.width/2, p.y + p.height/2 + 5);
+        }
+
+        function drawCuteGem(x, y) {
+            ctx.save();
+            ctx.translate(x + 12, y + 12);
+            // Outer Glow
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.3)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 16, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Diamond Gem Body
+            ctx.fillStyle = '#fbbf24';
+            ctx.beginPath();
+            ctx.moveTo(0, -12);
+            ctx.lineTo(10, -2);
+            ctx.lineTo(6, 12);
+            ctx.lineTo(-6, 12);
+            ctx.lineTo(-10, -2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Gem Highlight
+            ctx.fillStyle = '#fef3c7';
+            ctx.beginPath();
+            ctx.moveTo(0, -10);
+            ctx.lineTo(5, -2);
+            ctx.lineTo(0, 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            if (player.facing === 'left') {
+                ctx.scale(-1, 1);
+            }
+
+            let wobbleY = Math.sin(player.wobble) * 3;
+
+            // Cute Sprout Body (Little green blob/creature)
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.ellipse(0, 4 + wobbleY, 16, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Belly patch
+            ctx.fillStyle = '#6ee7b7';
+            ctx.beginPath();
+            ctx.ellipse(3, 7 + wobbleY, 9, 11, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cute Eyes
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(4, 1 + wobbleY, 2.5, 0, Math.PI * 2);
+            ctx.arc(10, 1 + wobbleY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eye shines
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(5, 0 + wobbleY, 1, 0, Math.PI * 2);
+            ctx.arc(11, 0 + wobbleY, 1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Little Rosy Cheeks
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.4)';
+            ctx.beginPath();
+            ctx.arc(1, 5 + wobbleY, 3, 0, Math.PI * 2);
+            ctx.arc(13, 5 + wobbleY, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sprout Leaf Stem on Head
+            ctx.strokeStyle = '#047857';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(7, -14 + wobbleY);
+            ctx.quadraticCurveTo(12, -22 + wobbleY, 16, -18 + wobbleY);
+            ctx.stroke();
+
+            // Leaf on Stem
+            ctx.fillStyle = '#34d399';
+            ctx.beginPath();
+            ctx.ellipse(14, -19 + wobbleY, 6, 3, Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // --- Main Animation Loop ---
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initial draw on load
+        loadLevel(1);
+        draw();
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
